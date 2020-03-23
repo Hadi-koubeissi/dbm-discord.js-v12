@@ -1,20 +1,20 @@
 module.exports = {
-	
-	name: "Clear Queue",
-	
+
+	name: "Shuffle Queue MOD",
+
 	section: "Audio Control",
-	
+
 	subtitle: function(data) {
 		const servers = ['Current Server', 'Temp Variable', 'Server Variable', 'Global Variable'];
-		return `The Queue of ${servers[parseInt(data.server)]} is cleared`;
+		return `Shuffle Queue of ${servers[parseInt(data.server)]}`;
 	},
-	
+
 	github: "LeonZ2019/DBM",
 	author: "LeonZ",
 	version: "1.1.0",
-	
+
 	fields: ["server", "varName"],
-	
+
 	html: function(isEvent, data) {
 		return `
 	<div>
@@ -30,13 +30,13 @@ module.exports = {
 		</div>
 	</div>`
 	},
-	
+
 	init: function () {
 		const { glob, document } = this;
-	
+
 		glob.serverChange(document.getElementById('server'), 'varNameContainer')
 	},
-	
+
 	action: function(cache) {
 		const data = cache.actions[cache.index];
 		const Audio = this.getDBM().Audio;
@@ -47,11 +47,11 @@ module.exports = {
 			this.callNextAction(cache);
 			return;
 		};
-		Audio.removeQueue(targetServer.id);
+		Audio.shuffleQueue(targetServer.id);
 		this.callNextAction(cache);
 	},
-	
+
 	mod: function(DBM) {
 	}
-	
+
 };

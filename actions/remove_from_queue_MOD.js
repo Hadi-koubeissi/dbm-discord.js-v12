@@ -1,20 +1,19 @@
 module.exports = {
-	
-	name: "Clear Queue",
-	
+
+	name: "Remove from Queue MOD",
+
 	section: "Audio Control",
-	
+
 	subtitle: function(data) {
-		const servers = ['Current Server', 'Temp Variable', 'Server Variable', 'Global Variable'];
-		return `The Queue of ${servers[parseInt(data.server)]} is cleared`;
+		return `Remove ${data.amount} Song`;
 	},
-	
+
 	github: "LeonZ2019/DBM",
 	author: "LeonZ",
 	version: "1.1.0",
-	
-	fields: ["server", "varName"],
-	
+
+	fields: ["server", "varName", "position", "amount"],
+
 	html: function(isEvent, data) {
 		return `
 	<div>
@@ -26,17 +25,27 @@ module.exports = {
 		</div>
 		<div id="varNameContainer" style="display: none; float: right; width: 60%;">
 			Variable Name:<br>
-			<input id="varName" class="round" type="text" list="variableList"><br>
+			<input id="varName" class="round" type="text" list="variableList">
+		</div>
+	</div><br><br><br>
+	<div>
+		<div style="float: left; width: 47%;">
+			Position:<br>
+			<input id="position" type="text" class="round" placeholder="Position start from 0">
+		</div>
+		<div style="float: left; padding-left: 3px; width: 50%;">
+			Remove Amount:<br>
+			<input id="amount" type="text" class="round" placeholder="Input must be great than 0">
 		</div>
 	</div>`
 	},
-	
+
 	init: function () {
 		const { glob, document } = this;
-	
+
 		glob.serverChange(document.getElementById('server'), 'varNameContainer')
 	},
-	
+
 	action: function(cache) {
 		const data = cache.actions[cache.index];
 		const Audio = this.getDBM().Audio;
@@ -46,12 +55,17 @@ module.exports = {
 		if (!targetServer) {
 			this.callNextAction(cache);
 			return;
-		};
-		Audio.removeQueue(targetServer.id);
+		}
+		const position = parseInt(this.evalMessage(data.position, cache));
+		const amount = parseInt(this.evalMessage(data.amount, cache));
+		const options = {};
+		options.from = position;
+		options.amount = amount;
+		Audio.removeFromQueue(options, targetServer.id)
 		this.callNextAction(cache);
 	},
-	
+
 	mod: function(DBM) {
 	}
-	
+
 };

@@ -8,14 +8,24 @@ module.exports = {
 		return `Set Volume to ${data.volume}`;
 	},
 
-	fields: ["volume"],
+	fields: ["type", "volume"],
 
 	html: function(isEvent, data) {
 		return `
-	<div style="float: left; width: 80%;">
-		Volume (0 = min; 100 = max):<br>
-		<input id="volume" class="round" value="50">
-	</div>`;
+	<div>
+		<div style="float: left; width: 35%;">
+			Volume Type:<br>
+			<select id="type" class="round">
+				<option value="0" selected>Decibels (db)</option>
+				<option value="1">Perceived</option>
+				<option value="2">Default</option>
+			</select>
+		</div>
+		<div style="float: left; width: 80%;">
+			Volume (0 = min; 100 = max):<br>
+			<input id="volume" class="round" value="50">
+		</div>
+	</div>`
 	},
 
 	init: function() {
@@ -25,10 +35,25 @@ module.exports = {
 		const data = cache.actions[cache.index];
 		const Audio = this.getDBM().Audio;
 		const server = cache.server;
-		if(server) {
-			const volume = parseInt(this.evalMessage(data.volume, cache)) / 100;
-			//Audio.setVolume(volume, cache); //Coming Soon
+		if (!server) {
+			this.callNextAction(cache);
+			return;
 		}
+		const options = {}
+		switch (parseInt(data.type)) {
+			case 0:
+				options.type = "db";
+				options.volume = parseInt(this.evalMessage(data.volume, cache));
+				break;
+			case 1:
+				options.type = "perceived";
+				options.volume = parseInt(this.evalMessage(data.volume, cache)) / 100;
+				break;
+			case 2:
+				options.volume = parseInt(this.evalMessage(data.volume, cache)) / 100;
+				break;
+		}
+		Audio.setVolume(options, server.id)
 		this.callNextAction(cache);
 	},
 
