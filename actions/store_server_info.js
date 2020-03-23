@@ -303,31 +303,31 @@ module.exports = {
 				result = targetServer.embedEnabled;
 				break; }
 			case 26: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.presence.status == "dnd").size;
 				break; }
 			case 27: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.presence.status == "online").size;
 				break; }
 			case 28: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.presence.status == "offline").size;
 				break; }
 			case 29: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.presence.status == "idle").size;
 				break; }
 			case 30: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.bot).size;
@@ -339,25 +339,25 @@ module.exports = {
 				result = targetServer.roles.cache.map(roles => roles.id);
 				break; }
 			case 33: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.map(members => members.id);
 				break; }
 			case 34: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.filter(m => m.user.bot == true).size;
 				break; }
 			case 35: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.members.cache.filter(m => m.user.bot == false).size;
 				break; }
 			case 36: {
-				if (server.memberCount !== server.members.cache.size) {
+				if (targetServer.memberCount !== targetServer.members.cache.size) {
 					await targetServer.fetchMembers();
 				}
 				result = targetServer.memberCount;
@@ -369,7 +369,7 @@ module.exports = {
 				result = targetServer.channels.cache.filter(c => c.type == "text").size;
 				break; }
 			case 39: {
-				result = targetServer.channels.cache	.filter(c => c.type == "voice").size;
+				result = targetServer.channels.cache.filter(c => c.type == "voice").size;
 				break; }
 			case 40: {
 				result = targetServer.verified;
