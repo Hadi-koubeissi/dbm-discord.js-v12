@@ -163,7 +163,6 @@ action: function (cache) {
     if (statustarget) {
         obj.status = statustarget;
     }
-    console.log(obj)
     botClient.setPresence(obj).then(() => {
         this.callNextAction(cache);
     }).catch(err => this.displayError(data, cache, err));

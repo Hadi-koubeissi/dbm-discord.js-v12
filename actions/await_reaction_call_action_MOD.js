@@ -167,7 +167,6 @@ module.exports = {
 
 		const storage = parseInt(data.storage2);
 		const varName2 = this.evalMessage(data.varName2, cache);
-
 		if(msg) {
 			const js = String(this.evalMessage(data.filter, cache));
 		

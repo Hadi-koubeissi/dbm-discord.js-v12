@@ -5,7 +5,7 @@ module.exports = {
 		section: "Channel Control",
 
 		subtitle: function(data) {
-			const info = ['Channel Object', 'Invite Creator', 'Creation Date', 'Expiration Date', 'Guild Object', 'Max. Uses', 'Is Temporary?', 'URL for Invite', 'Times Used','Invite server member count', 'Invite code']
+			const info = ['Channel Object', 'Invite Creator', 'Creation Date', 'Expiration Date', 'Guild Object', 'Max. Uses', 'Is Temporary?', 'URL for Invite', 'Times Used','Easter Egg', 'Invite code']
 			return `Store ${info[parseInt(data.info)]} from Invite`;
 		},
 
@@ -28,8 +28,6 @@ module.exports = {
 					dataType = 'User';
 					break;
 				case 2:
-					dataType = 'date';
-					break;
 				case 3:
 					dataType = 'date';
 					break;
@@ -37,6 +35,8 @@ module.exports = {
 					dataType = 'Guild';
 					break;
 				case 5:
+				case 8:
+				case 10:
 					dataType = 'number';
 					break;
 				case 6:
@@ -44,15 +44,6 @@ module.exports = {
 					break;
 				case 7:
 					dataType = 'string';
-					break;
-				case 8:
-					dataType = 'number';
-					break;
-				case 9:
-					dataType = 'number';
-					break;
-				case 10:
-					dataType = 'number';
 					break;
 			}
 			return ([data.varName, dataType]);
@@ -84,7 +75,6 @@ module.exports = {
 				<option value="6">Is temporary?</option>
 				<option value="7">Url for invite</option>
 				<option value="8">Times used</option>
-				<option value="9">Invite server member count</option>
 				<option value=10">Invite Code</option>
 			</select>
 		</div><br>
@@ -150,9 +140,6 @@ module.exports = {
 						break;
 					case 8:
 						result = invite.uses;
-						break;
-					case 9:
-						result = invite.memberCount;
 						break;
 					case 10:
 						result = invite.code;

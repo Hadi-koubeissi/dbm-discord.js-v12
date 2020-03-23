@@ -54,18 +54,17 @@ module.exports = {
 			const type = parseInt(data.storage);
 			const varName2 = this.evalMessage(data.varName2, cache);
 			const image = this.getVariable(type, varName2, cache);
-			const Images = this.getDBM().Images;
-			Images.createBuffer(image).then(function(buffer) { //Implent Canvas Here
-				if(Array.isArray(server)) {
-					this.callListFunc(server, 'setIcon', [buffer]).then(function() {
-						this.callNextAction(cache);
-					}.bind(this));
-				} else {
-					server.setIcon(buffer).then(function() {
-						this.callNextAction(cache);
-					}.bind(this)).catch(this.displayError.bind(this, data, cache));
-				}
-			}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			const CanvasJS = this.getDBM().CanvasJS;
+			const buffer = CanvasJS.toBuffer(image);
+			if(Array.isArray(server)) {
+				this.callListFunc(server, 'setIcon', [buffer]).then(function() {
+					this.callNextAction(cache);
+				}.bind(this));
+			} else {
+				server.setIcon(buffer).then(function() {
+					this.callNextAction(cache);
+				}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			}
 		} else {
 			this.callNextAction(cache);
 		}

@@ -36,12 +36,11 @@ module.exports = {
 		const storage = parseInt(data.storage);
 		const varName = this.evalMessage(data.varName, cache);
 		const image = this.getVariable(storage, varName, cache);
+		const CanvasJS = this.getDBM().CanvasJS;
+		const buffer = CanvasJS.toBuffer(image);
 		if(botClient && botClient.setAvatar) {
-			const Images = this.getDBM().Images;
-			Images.createBuffer(image).then(function(buffer) {
-				botClient.setAvatar(buffer).then(function() { //Implent canvas here
-					this.callNextAction(cache);
-				}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			botClient.setAvatar(buffer).then(function() {
+				this.callNextAction(cache);
 			}.bind(this)).catch(this.displayError.bind(this, data, cache));
 		} else {
 			this.callNextAction(cache);

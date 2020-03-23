@@ -72,15 +72,14 @@ module.exports = {
 			const type = parseInt(data.storage);
 			const varName = this.evalMessage(data.varName, cache);
 			const image = this.getVariable(type, varName, cache);
-			const Images = this.getDBM().Images;
-			Images.createBuffer(image).then(function(buffer) {
-				const name = this.evalMessage(data.emojiName, cache);
-				server.createEmoji(buffer, name).then(function(emoji) {
-					const varName2 = this.evalMessage(data.varName2, cache);
-					const storage = parseInt(data.storage);
-					this.storeValue(emoji, storage, varName2, cache);
-					this.callNextAction(cache);
-				}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			const CanvasJS = this.getDBM().CanvasJS;
+			const buffer = CanvasJS.toBuffer(image);
+			const name = this.evalMessage(data.emojiName, cache);
+			server.createEmoji(buffer, name).then(function(emoji) {
+				const varName2 = this.evalMessage(data.varName2, cache);
+				const storage = parseInt(data.storage);
+				this.storeValue(emoji, storage, varName2, cache);
+				this.callNextAction(cache);
 			}.bind(this)).catch(this.displayError.bind(this, data, cache));
 		} else {
 			this.callNextAction(cache);

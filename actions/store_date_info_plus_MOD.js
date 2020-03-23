@@ -6,7 +6,7 @@ module.exports = {
 
     subtitle: function(data) {
         const info =  ['Day of Year', 'Week of Year','Millisecond']
-        const info = ['Full Time']
+        //const info = ['Full Time']
         const storage = ['', 'Temp Variable', 'Server Variable', 'Global Variable']
         return `Store ${data.modeStorage === "0" ? '"' + info[data.info] + '"' : data.buildInput === "" ? '"Not Set"' : '"' + data.buildInput + '"'} from a Date ~ ${storage[data.storage]}`;
     },

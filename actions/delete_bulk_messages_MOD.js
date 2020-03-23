@@ -11,14 +11,20 @@ module.exports = {
 
 	github: "LeonZ2019/DBM",
 	author: "LeonZ",
-	version: "1.1.0",
+	version: "1.2.0",
 
-	fields: ["channel", "varName", "count", "option", "msgid", "Con0", "Con1", "Con2", "Con3", "Con4", "Con5", "iffalse", "iffalseVal"],
+	variableStorage: function(data, varType) {
+		const type = parseInt(data.storage);
+		if(type !== varType) return;
+		return ([data.varName2, 'Deleted Messages List']);
+	},
+
+	fields: ["channel", "varName", "count", "type", "option", "msgid", "filter", "iffalse", "iffalseVal", "storage", "varName2"],
 
 	html: function(isEvent, data) {
 		return `
 	<div style="width: 550px; height: 350px; overflow-y: scroll;">
-		<div>
+		<div style="padding-top: 8px;">
 			<div style="float: left; width: 35%;">
 				Source Channel:<br>
 				<select id="channel" class="round" onchange="glob.channelChange(this, 'varNameContainer')">
@@ -31,10 +37,19 @@ module.exports = {
 			</div>
 		</div><br><br><br>
 		<div style="padding-top: 8px;">
-			Amount to Delete:<br>
-			<input id="count" class="round" type="text" style="width: 94%;"><br>
-		</div>
-		<div>
+			<div style="float: left; width: 39%;">
+				Amount to Delete:<br>
+				<input id="count" class="round" type="text">
+			</div>
+			<div style="padding-left: 3px; float: left; width: 54%;">
+				Delete By:<br>
+				<select id="type" class="round" onchange="glob.onChange1(this)">
+					<option value="0" selected>Exactly Amount</option>
+					<option value="1">Filter</option>
+				</select><br>
+			</div>
+		</div><br><br>
+		<div style="padding-top: 8px;">
 			<div style="float: left; width: 35%;">
 				Delete Message:<br>
 				<select id="option" class="round" onchange="glob.onChange2(this)">
@@ -46,43 +61,17 @@ module.exports = {
 			</div>
 			<div id="varNameContainer2" style="display: none; float: right; width: 60%;">
 				Message ID:<br>
-				<input id="msgid" class="round" type="text"><br>
+				<input id="msgid" class="round" type="text">
 			</div>
 		</div><br><br><br>
-		<div style="padding-top: 8px;">
-			<div style="float: left; width: 50%;">
-				Exclude Author:<br>
-				<input id="Con0" class="round" type="text" placeholder="Leave it blank for None."><br>
-				Include Author:<br>
-				<input id="Con1" class="round" type="text" placeholder="Leave it blank for None."><br>
+		<div id="filterPlaceHolder" style="display: none;">
+			<div style="float: left; width: 90%;">
+				Filter (JavaScript Strings):<br>
+				<input id="filter" class="round" type="text" value="m => m.author.id == 'someID'"><br>
 			</div>
-			<div style="padding-left: 3px; float: left; width: 49%;">
-				Include Content:<br>
-				<input id="Con3" class="round" type="text" placeholder="Leave it blank for None."><br>
-				Custom:<br>
-				<input id="Con4" class="round" type="text" placeholder="Leave it blank for None."><br>
-			</div>
-		</div><br><br><br>
+		</div>
 		<div>
-			<div style="float: left; width: 45%;">
-				Embed Message:<br>
-				<select id="Con2" class="round">
-					<option value="0" selected>None</option>
-					<option value="1">No</option>
-					<option value="2">Yes</option>
-				</select><br>
-			</div>
-			<div style=" padding-left: 32px; float: left; width: 49%;">
-				Has Attachment:<br>
-				<select id="Con5" class="round">
-					<option value="0" selected>None</option>
-					<option value="1">No</option>
-					<option value="2">Yes</option>
-				</select><br>
-			</div>
-		</div><br><br><br>
-		<div>
-			<div style="float: left; width: 40%;">
+			<div style="float: left; width: 35%;">
 				If Delete Bulk Messages Fails:<br>
 				<select id="iffalse" class="round" onchange="glob.onChangeFalse(this)">
 					<option value="0" selected>Continue Actions</option>
@@ -91,7 +80,22 @@ module.exports = {
 					<option value="3">Skip Next Actions</option>
 				</select>
 			</div>
-			<div id="iffalseContainer" style="padding-left: 3%; display: none; float: left; width: 60%;"><span id="iffalseName">Action Number</span>:<br><input id="iffalseVal" class="round" type="text"></div>
+			<div id="iffalseContainer" style="padding-left: 5%; display: none; float: left; width: 63%;">
+				<span id="iffalseName">Action Number</span>:<br>
+				<input id="iffalseVal" class="round" type="text">
+			</div>
+		</div><br><br><br><br>
+		<div style="padding-top: 16px;">
+			<div style="float: left; width: 35%;">
+				Store Message List To:
+				<select id="storage" class="round" onchange="glob.variableChange(this, 'varNameContainer3')">
+					${data.variables[0]}
+				</select>
+			</div>
+			<div id="varNameContainer3" style="display: none; float: right; width: 60%;">
+				Variable Name:<br>
+				<input id="varName2" class="round" type="text">
+			</div>
 		</div>
 	</div>`
 	},
@@ -99,8 +103,18 @@ module.exports = {
 	init: function() {
 		const {glob, document} = this;
 
-		glob.onChange2 = function(event) {
-			const value = parseInt(event.value);
+		glob.onChange1 = function(type) {
+			const value = parseInt(type.value);
+			const placeholder = document.getElementById("filterPlaceHolder");
+			if(value === 0) {
+				placeholder.style.display = "none";
+			} else {
+				placeholder.style.display = null;
+			}
+		};
+
+		glob.onChange2 = function(option) {
+			const value = parseInt(option.value);
 			const varNameInput = document.getElementById("varNameContainer2");
 			if(value === 0) {
 				varNameInput.style.display = "none";
@@ -108,12 +122,15 @@ module.exports = {
 				varNameInput.style.display = null;
 			}
 		};
-		glob.channelChange(document.getElementById('channel'), 'varNameContainer')
+
+		glob.channelChange(document.getElementById('channel'), 'varNameContainer');
+		glob.onChange1(document.getElementById('type'));
 		glob.onChange2(document.getElementById('option'));
 		glob.onChangeFalse(document.getElementById('iffalse'));
+		glob.variableChange(document.getElementById('storage'), 'varNameContainer3');
 	},
 
-	action: function(cache) {
+	action: async function(cache) {
 		const data = cache.actions[cache.index];
 		const server = cache.server;
 		let source;
@@ -128,12 +145,12 @@ module.exports = {
 				break;
 			case 1:
 				if(msg && msg.mentions) {
-					source = msg.mentions.channels.first();
+					source = msg.mentions.channels.cache.first();
 				}
 				break;
 			case 2:
 				if(server) {
-					source = server.channels.first();
+					source = server.channels.cache.first();
 				}
 				break;
 			case 3:
@@ -148,86 +165,40 @@ module.exports = {
 				source = this.global[varName];
 				break;
 		}
-		let options = {};
-		const msgid = parseInt(this.evalMessage(data.msgid, cache));
-		const option = parseInt(data.option);
-		switch(option) {
-			case 1:
-				options.before = msgid;
-				break;
-			case 2:
-				options.after = msgid;
-				break;
-			case 3:
-				options.around = msgid;
-				break;
+		const limit = Math.min(parseInt(this.evalMessage(data.count, cache)), 100);
+		const filter = String(this.evalMessage(data.filter, cache));
+
+		try {
+			eval(filter)
+		} catch (e) {
+			this.displayError(e, data, cache);
+			return;
 		}
-		options.limit = Math.min(parseInt(this.evalMessage(data.count, cache)), 100);
-		if(source && source.fetchMessages) {
-			source.fetchMessages(options).then(function(messages) {
-				let Con0 = this.evalMessage(data.Con0, cache)
-				let Con1 = this.evalMessage(data.Con1, cache)
-				let Con2 = this.evalMessage(data.Con2, cache)
-				let Con3 = this.evalMessage(data.Con3, cache)
-				let Con4 = this.evalMessage(data.Con4, cache)
-				let Con5 = this.evalMessage(data.Con5, cache)
-				if (Con0) {
-					Con0 = Con0.replace(/\D/g,'');
-					messages = messages.filter(function(element) {
-						return element.author.id !== Con0;
-					}, this);
-				}
-				if (Con1) {
-					Con1 = Con1.replace(/\D/g,'');
-					messages = messages.filter(function(element) {
-						return element.author.id === Con1;
-					}, this);
-				}
-				if (Con2 != 0) {
-					messages = messages.filter(function(element) {
-						if (Con2 == 1) {
-							return element.embeds.length === 0;
-						} else {
-							return element.embeds.length !== 0;
-						}
-					}, this);
-				}
-				if (Con3) {
-					messages = messages.filter(function(element) {
-						return element.content.includes(Con3);
-					}, this);
-				}
-				if (Con4) {
-					messages = messages.filter(function(message) {
-						let result = false;
-						try {
-							result = !!this.eval(Con4, cache);
-						} catch(e) {}
-						return result;
-					}, this);
-				}
-				if (Con5 != 0) {
-					messages = messages.filter(function(element) {
-						if (Con5 == 1) {
-							return element.attachments.size === 0;
-						} else {
-							return element.attachments.size !== 0;
-						}
-					}, this);
-				}
-				source.bulkDelete(messages).then(function() {
-					this.callNextAction(cache);
-				}.bind(this)).catch(err => {
-					if (err.message == "You can only bulk delete messages that are under 14 days old.") {
-						this.executeResults(false, data, cache);
-					} else {
-						this.displayError.bind(this, data, cache);
-					}
-				})
-			}.bind(this)).catch(this.displayError.bind(this, data, cache));
-		} else {
-			this.callNextAction(cache);
+
+		let messages = await msg.channel.messages.fetch({limit:100})
+		while (messages.size < limit) {
+			let before = messages.last(1)[0].id;
+			let fetch = await msg.channel.messages.fetch({limit:100, before: before})
+			let result = fetch.filter(filter);
+			messages = messages.concat(result)
 		}
+		while (messages.size > limit) {
+			messages = messages.first(limit);
+		}
+		source.bulkDelete(messages).then(function(result) {
+			const storage = parseInt(data.storage);
+			if (storage != 0 && result) {
+				const varName = this.evalMessage(data.varName2, cache);
+				this.storeValue(result.array(), storage, varName, cache);
+				this.callNextAction(cache);
+			}
+		}.bind(this)).catch(function(err) {
+			if (err.message == "You can only bulk delete messages that are under 14 days old.") {
+				this.executeResults(false, data, cache);
+			} else {
+				this.displayError.bind(this, data, cache);
+			}
+		}.bind(this)).catch(this.displayError.bind(this, data, cache));
 	},
 
 	mod: function(DBM) {

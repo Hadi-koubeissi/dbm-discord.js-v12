@@ -1,6 +1,6 @@
 module.exports = {
 
-	name: "Wait MOD",
+	name: "Wait",
 
 	section: "Other Stuff",
 

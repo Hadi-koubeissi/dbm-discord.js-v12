@@ -129,7 +129,7 @@ module.exports = {
 				name = 'SPOILER_image.png';
 		}
 		const buffer = canvas.toBuffer('image/png',{compressionLevel:compress});
-		const attachment = new Discord.Attachment(buffer, name);
+		const attachment = new Discord.MessageAttachment(buffer, name);
 		const _this = this;
 		if(target && target.send) {
 			target.send(this.evalMessage(data.message, cache), attachment).then(function(msgobject) {

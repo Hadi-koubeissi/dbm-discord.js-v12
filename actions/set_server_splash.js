@@ -60,19 +60,19 @@ module.exports = {
 		if(Array.isArray(server) || (server && server.setSplash)) {
 			const type = parseInt(data.storage);
 			const varName2 = this.evalMessage(data.varName2, cache);
-			const image = this.getVariable(type, varName2, cache);
-			const Images = this.getDBM().Images;
-			Images.createBuffer(image).then(function(buffer) { //Implent Canvas Here
-				if(Array.isArray(server)) {
-					this.callListFunc(server, 'setSplash', [buffer]).then(function() {
-						this.callNextAction(cache);
-					}.bind(this));
-				} else {
-					server.setSplash(buffer).then(function() {
-						this.callNextAction(cache);
-					}.bind(this)).catch(this.displayError.bind(this, data, cache));
-				}
-			}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			const img = this.getVariable(type, varName2, cache);
+
+			const CanvasJS = this.getDBM().CanvasJS;
+			const buffer = CanvasJS.toBuffer(img);
+			if(Array.isArray(server)) {
+				this.callListFunc(server, 'setSplash', [buffer]).then(function() {
+					this.callNextAction(cache);
+				}.bind(this));
+			} else {
+				server.setSplash(buffer).then(function() {
+					this.callNextAction(cache);
+				}.bind(this)).catch(this.displayError.bind(this, data, cache));
+			}
 		} else {
 			this.callNextAction(cache);
 		}

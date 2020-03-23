@@ -568,6 +568,18 @@ Actions.getAction = function(content, cache) {
 	return {name:data.name,index:index,permission:permission};
 }
 
+Actions.anchorJump = function(id, cache) {
+	const actions = cache.actions;
+	const anchorId = id;
+	const anchorIndex = actions.findIndex((a) => a.name === "Create Anchor" && a.anchor_id === anchorId);
+	if (anchorIndex === -1) {
+		console.error('There was not an anchor found with that exact anchor ID!');
+		this.callNextAction(cache);
+	} else {
+		cache.index = anchorIndex - 1;
+	};
+};
+
 Actions.getSendTarget = function(type, varName, cache) {
 	const msg = cache.msg;
 	const server = cache.server;
@@ -926,11 +938,8 @@ Actions.executeResults = function(result, data, cache) {
 				}
 				break;
 			case 4:
-				const id = this.evalMessage(data.iftrueVal, cache);
-				const anchorIndex = cache.actions.findIndex((a) => a.name === "Create Anchor" && a.anchor_id === id);
-				if (anchorIndex === -1) throw new Error(errors['404']);
-				cache.index = anchorIndex - 1;
-				this.callNextAction(cache);
+				const id = this.evalMessage(data.iffalseVal, cache);
+				this.anchorJump(id, cache);
 				break;
 			default:
 				break;
@@ -959,10 +968,7 @@ Actions.executeResults = function(result, data, cache) {
 				break;
 			case 4:
 				const id = this.evalMessage(data.iffalseVal, cache);
-				const anchorIndex = cache.actions.findIndex((a) => a.name === "Create Anchor" && a.anchor_id === id);
-				if (anchorIndex === -1) throw new Error(errors['404']);
-				cache.index = anchorIndex - 1;
-				this.callNextAction(cache);
+				this.anchorJump(id, cache);
 				break;
 			default:
 				break;
@@ -1064,6 +1070,7 @@ Events.setupIntervals = function(bot) {
 	}
 };
 
+
 Events.onReaction = function(id, reaction, user) {
 	const events = $evts[id];
 	if(!events) return;
@@ -1109,48 +1116,408 @@ Events.onError = function(text, text2, cache) {
 };
 
 //---------------------------------------------------------------------
-// Images
+// Canvas (require canvas v2.6.0 opentype.js v?)
 // Contains functions for image management.
 //---------------------------------------------------------------------
 
-const JIMP = require('jimp');
+const Canvas = require('canvas');
+const openType = require('opentype.js');
+const fs = require("fs");
 
-const Images = DBM.Images = {};
+const CanvasJS = DBM.CanvasJS = {};
 
-Images.getImage = function(url) {
-	if(!url.startsWith('http')) url = Actions.getLocalFile(url);
-	return JIMP.read(url);	
-};
+CanvasJS.canvas = Canvas;
 
-Images.getFont = function(url) {
-	return JIMP.loadFont(Actions.getLocalFile(url));	
-};
+CanvasJS.toBuffer = function (path) {
+	const image = CanvasJS.loadImage(path);
+	const canvas = Canvas.createCanvas(image.width, image.height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(image, 0, 0, image.width, image.height);
+	const buffer = canvas.toBuffer('image/png', {compressionLevel:100});
+	return buffer;
+}
 
-Images.createBuffer = function(image) {
-	return new Promise(function(resolve, reject) {
-		image.getBuffer(JIMP.MIME_PNG, function(err, buffer) {
-			if(err) {
-				reject(err);
+CanvasJS.toAttachment = function (path, name) {
+	const buffer = Canvas.toBuffer(path);
+	const attachment = new DiscordJS.MessageAttachment(buffer, name);
+	return attachment;
+}
+
+CanvasJS.createImage = function (path) {
+	const data = Canvas.loadImage(path).then(function(image) {
+		const canvas = Canvas.createCanvas(image.width, image.height);
+		const ctx = canvas.getContext('2d');
+		ctx.drawImage(image,0,0,image.width,image.height);
+		return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+	})
+	return data;
+}
+
+CanvasJS.cropImage = function (path, options) {
+	const image = CanvasJS.loadImage(path);
+	if (options.width.endsWith("%")) {
+		options.width = image.width * parseFloat(options.width) / 100;
+	}
+	if (options.height.endsWith("%")) {
+		options.height = image.height * parseFloat(options.height) / 100;
+	}
+	if (options.height > image.height) {
+		options.height = image.height;
+	}
+	if (options.width > image.width) {
+		options.width = image.width;
+	}
+	let x, y;
+	switch (options.align) {
+		case 0:
+			x = 0;
+			y = 0;
+			break;
+		case 1:
+			x = (options.width / 2) - (image.width / 2);
+			y = 0;
+			break;
+		case 2:
+			x = options.width - image.width;
+			y = 0;
+			break;
+		case 3:
+			x = 0;
+			y = (options.height / 2) - (image.height / 2);
+			break;
+		case 4:
+			x = (options.width / 2) - (image.width / 2);
+			y = (options.height / 2) - (image.height / 2);
+			break;
+		case 5:
+			x = options.width - image.width;
+			y = (options.height / 2) - (image.height / 2);
+			break;
+		case 6:
+			x = 0;
+			y = options.height - image.height;
+			break;
+		case 7:
+			x = (options.width / 2) - (image.width / 2);
+			y = options.height - image.height;
+			break;
+		case 8:
+			x = options.width - image.width;
+			y = options.height - image.height;
+			break;
+	}
+	const canvas = Canvas.createCanvas(options.width, options.height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(image, x, y, image.width, image.height);
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.drawImage = function (path, path2, options) {
+	const image = CanvasJS.loadImage(path);
+	const image2 = CanvasJS.loadImage(path2);
+	const canvas = Canvas.createCanvas(image.width, image.height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(image, 0, 0, image.width, image.height);
+	if (options.effect && options.effect == "mask") {
+		ctx.globalCompositeOperation = 'destination-out';
+	}
+	if (!options.x) {
+		options.x = 0;
+	}
+	if (!options.y) {
+		options.y = 0;
+	}
+	ctx.drawImage(image2, options.x, options.y, image2.width, image2.height)
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.drawText = function (path, options) {
+	const image = CanvasJS.loadImage(path);
+	if (!options.color) {
+		options.color = "#000000";
+	} else if (!options.color.startsWith("#")) {
+		options.color = "#" + options.color;
+	}
+	if (!options.size) {
+		options.size = 10;
+	}
+	if (!options.x) {
+		options.x = 0;
+	}
+	if (!options.y) {
+		options.y = 0;
+	}
+	const canvas = Canvas.createCanvas(image.width, image.height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(image, 0, 0, image.width, image.height);
+	const font = openType.loadSync(options.font);
+	const textpath = font.getPath(options.text,0,0, options.size);
+	const width = textpath.getBoundingBox().x2 - textpath.getBoundingBox().x1;
+	const height = textpath.getBoundingBox().y2 - textpath.getBoundingBox().y1;
+	switch (options.align) {
+		case 1:
+			options.x -= width / 2 + textpath.getBoundingBox().x1;
+			options.y -= textpath.getBoundingBox().y1;
+			break;
+		case 2:
+			options.x -= width + textpath.getBoundingBox().x1;
+			options.y -= textpath.getBoundingBox().y1;
+			break;
+		case 3:
+			options.x -= textpath.getBoundingBox().x1;
+			options.y -= height / 2 + textpath.getBoundingBox().y1;
+			break;
+		case 4:
+			options.x -= width / 2 + textpath.getBoundingBox().x1;
+			options.y -= height / 2 + textpath.getBoundingBox().y1;
+			break;
+		case 5:
+			options.x -= width + textpath.getBoundingBox().x1;
+			options.y -= height / 2 + textpath.getBoundingBox().y1;
+			break;
+		case 6:
+			options.x -= textpath.getBoundingBox().x1;
+			options.y -= height + textpath.getBoundingBox().y1;
+			break;
+		case 7:
+			options.x -= width / 2 + textpath.getBoundingBox().x1;
+			options.y -= height + textpath.getBoundingBox().y1;
+			break;
+		case 8:
+			options.x -= width + textpath.getBoundingBox().x1;
+			options.y -= height + textpath.getBoundingBox().y1;
+		case 0:
+		default:
+			options.x -= textpath.getBoundingBox().x1;
+			options.y -= textpath.getBoundingBox().y1;
+			break;
+	};
+	const textholder = font.getPath(options.text, options.x, options.y, options.size);
+	textholder.fill = options.color;
+	textholder.draw(ctx);
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.editBorder = function (path, options) {
+	const image = CanvasJS.loadImage(path);
+	let canvas;
+	if (options.type == "circle") {
+		if (!options.radius && isNaN(options.radius) || options.radius * 2 > image.width && options.radius * 2 > image.height) {
+			let max;
+			if (image.width > image.height) {
+				max = image.height;
 			} else {
-				resolve(buffer);
+				max = image.width;
 			}
-		});
-	});
-};
+			options.radius = max / 2;
+		}
+		canvas = Canvas.createCanvas(options.radius * 2,options.radius * 2);
+		const ctx = canvas.getContext('2d');
+		ctx.beginPath();
+		ctx.arc(options.radius, options.radius, options.radius, 0, Math.PI * 2);
+		ctx.closePath();
+		ctx.clip();
+		let x = 0;
+		let y = 0;
+		if (options.radius * 2 < image.width) {
+			x -= image.width / 2 - options.radius;
+		}
+		if (options.radius * 2 < image.height) {
+			y -= image.height / 2 - options.radius;
+		}
+		ctx.drawImage(image, x, y, image.width, image.height);
+	} else if (options.type == "round") {
+		canvas = Canvas.createCanvas(image.width,image.height);
+		const ctx = canvas.getContext('2d');
+		ctx.beginPath();
+		ctx.moveTo(options.radius,0);
+		ctx.lineTo(image.width-options.radius,0);
+		ctx.quadraticCurveTo(image.width,0,image.width,options.radius);
+		ctx.lineTo(image.width,image.height-options.radius);
+		ctx.quadraticCurveTo(image.width,image.height,image.width-options.radius,image.height);
+		ctx.lineTo(options.radius,image.height);
+		ctx.quadraticCurveTo(0,image.height,0,image.height-options.radius);
+		ctx.lineTo(0,options.radius);
+		ctx.quadraticCurveTo(0,0,options.radius,0);
+		ctx.closePath();
+		ctx.clip();
+		ctx.drawImage(image, 0, 0, image.width, image.height);
+	}
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
 
-Images.drawImageOnImage = function(img1, img2, x, y) {
-	for(let i = 0; i < img2.bitmap.width; i++) {
-		for(let j = 0; j < img2.bitmap.height; j++) {
-			const pos = (i * (img2.bitmap.width * 4)) + (j * 4);
-			const pos2 = ((i + y) * (img1.bitmap.width * 4)) + ((j + x) * 4);
-			const target = img1.bitmap.data;
-			const source = img2.bitmap.data;
-			for(let k = 0; k < 4; k++) {
-				target[pos2 + k] = source[pos + k];
+CanvasJS.flipImage = function (path, flip) {
+	const image = CanvasJS.loadImage(path);
+	const canvas = Canvas.createCanvas(image.width,image.height);
+	const ctx = canvas.getContext('2d');
+	ctx.clearRect(0,0,image.width,image.height);
+	ctx.save();
+	ctx.translate(image.width / 2, image.height / 2);
+	switch (parseInt(flip)) {
+		case 0:
+			ctx.scale(-1,1);
+			break;
+		case 1:
+			ctx.scale(1,-1);
+			break;
+		case 2:
+			ctx.scale(-1,-1);
+			break;
+	}
+	ctx.drawImage(image, -image.width/2, -image.height/2, image.width, image.height);
+	ctx.restore();
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.generateProgress = function (options) {
+	let canvas;
+	if (options.type == 0) {
+		canvas = Canvas.createCanvas(options.width, options.height);
+	} else if (options.type == 1) {
+		canvas = Canvas.createCanvas(options.size, options.size);
+	}
+	const ctx = canvas.getContext('2d');
+	if (!options.color) {
+		ctx.strokeStyle = "#000000";
+	} else if (!options.color.startsWith("#")) {
+		ctx.strokeStyle = "#" + options.color;
+	} else {
+		ctx.strokeStyle = options.color;
+	}
+	ctx.lineWidth = options.lineWidth;
+	ctx.lineCap = options.lineCap;
+	switch (options.type) {
+		case 0:
+			ctx.beginPath();
+			switch (options.lineCap) {
+				case "square":
+					ctx.moveTo(0, options.height/2);
+					ctx.lineTo(options.width*options.percent/100, options.height/2);
+					break;
+				case "round":
+					let center = options.lineWidth/2;
+					let top = options.height/2-center;
+					let bottom = options.height/2+center;
+					ctx.moveTo(center,top);
+					ctx.lineTo(options.width-options.lineWidth,top);
+					ctx.arcTo(options.width,top,options.width,options.height/2,center);
+					ctx.arcTo(options.width,bottom,top,bottom,center);
+					ctx.lineTo(center,bottom);
+					ctx.arcTo(0,bottom,0,options.height/2,center);
+					ctx.arcTo(0,top,center,top,center);
+					ctx.closePath();
+					ctx.clip();
+					ctx.beginPath();
+					ctx.moveTo(-center, options.height/2);
+					ctx.lineTo(options.width*options.percent/100-center, options.height/2);
+					break;
+			}
+			break;
+		case 1:
+			ctx.translate(options.size/2, options.size/2);
+			ctx.rotate(-0.5 * Math.PI);
+			ctx.beginPath();
+			ctx.arc(0, 0, options.radius, 0, Math.PI * 2 * options.percent / 100, false);
+			break;
+	}
+	ctx.stroke();
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.loadImage = function (path) {
+	const image = new Canvas.Image();
+	image.src = path;
+	return image;
+}
+
+CanvasJS.resizeImage = function (path, options) {
+	const image = CanvasJS.loadImage(path);
+	if (!options.aspectRatio || typeof options.aspectRatio != "boolean") {
+		options.aspectRatio = false;
+	}
+	if (options.aspectRatio) {
+		if (options.width && options.height) {
+			if (!isNaN(options.width)) {
+				options.scaleWidth = options.width / image.width;
+			} else if (options.width.endsWith("%")) {
+				options.scaleWidth = parseFloat(options.width) / 100;
+			}
+			if (!isNaN(options.height)) {
+				options.scaleHeight = options.height / image.height;
+			} else if (options.height.endsWith("%")) {
+				options.scaleHeight = parseFloat(options.height) / 100;
+			}
+		} else if (options.width) {
+			if (!isNaN(options.width)) {
+				options.scaleWidth = options.width / image.width;
+				options.scaleHeight = options.scaleWidth;
+			} else if (options.width.endsWith("%")) {
+				options.scaleWidth = parseFloat(options.width) / 100;
+				options.scaleHeight = options.scaleWidth;
+			}
+		} else if (options.height) {
+			if (!isNaN(options.height)) {
+				options.scaleHeight = options.height / image.height;
+				options.scaleWidth = options.scaleHeight;
+			} else if (options.height.endsWith("%")) {
+				options.scaleHeight = parseFloat(options.height) / 100;
+				options.scaleWidth = options.scaleHeight;
 			}
 		}
+	} else {
+		if (options.width && !isNaN(options.width)) {
+			options.scaleWidth = options.width / image.width;
+		} else if (options.width && options.width.endsWith("%")) {
+			options.scaleWidth = parseFloat(options.width) / 100;
+		}
+		if (options.height && !isNaN(options.height)) {
+			options.scaleHeight = options.height / image.height;
+		} else if (options.height && options.height.endsWith("%")) {
+			options.scaleHeight = parseFloat(options.height) / 100;
+		}
 	}
-};
+	if (!options.scaleHeight) {
+		options.scaleHeight =1;
+	}
+	if (!options.scaleWidth) {
+		options.scaleWidth =1;
+	}
+	const canvas = Canvas.createCanvas(image.width*options.scaleWidth,image.height*options.scaleHeight);
+	const ctx = canvas.getContext('2d');
+	ctx.clearRect(0,0);
+	ctx.save();
+	ctx.translate(image.width*options.scaleWidth / 2, image.height*options.scaleHeight / 2);
+	ctx.scale(options.scaleWidth, options.scaleHeight);
+	ctx.drawImage(image, -image.width/2, -image.height/2, image.width, image.height);
+	ctx.restore();
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+}
+
+CanvasJS.rotateImage = function (path, degree) {
+	const radian = Math.PI / 180 * degree;
+	const image = CanvasJS.loadImage(path);
+	let imageWidth = image.width * Math.abs(Math.cos(radian)) + image.height * Math.abs(Math.sin(radian));
+	let imageHeight = image.height * Math.abs(Math.cos(radian)) + image.width * Math.abs(Math.sin(radian));
+	const canvas = Canvas.createCanvas(imageWidth, imageHeight);
+	const ctx = canvas.getContext('2d');
+	ctx.save();
+	ctx.translate(imageWidth / 2, imageHeight / 2);
+	ctx.rotate(radian);
+	ctx.drawImage(image, -image.width/2, -image.height/2, image.width, image.height);
+	ctx.restore();
+	return canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+	
+}
+
+CanvasJS.saveImage = function (path, localPath) {
+	const image = CanvasJS.loadImage(path);
+	const canvas = Canvas.createCanvas(image.width,image.height);
+	const ctx = canvas.getContext('2d');
+	ctx.drawImage(image, 0, 0, image.width, image.height);
+	const buffer = canvas.toBuffer();
+	fs.writeFileSync(localPath,buffer);
+}
+
 
 //---------------------------------------------------------------------
 // Files
@@ -1456,125 +1823,219 @@ Files.initEncryption();
 
 const Audio = DBM.Audio = {};
 
-Audio.ytdl = null;
-try {
-	Audio.ytdl = require('ytdl-core');
-} catch(e) {}
+Audio.ytdl = require('ytdl-core');
 
-Audio.queue = [];
-Audio.volumes = [];
-Audio.connections = [];
-Audio.dispatchers = [];
-
-Audio.isConnected = function(cache) {
-	if(!cache.server) return false;
-	const id = cache.server.id;
-	return this.connections[id];
-};
-
-Audio.isPlaying = function(cache) {
-	if(!cache.server) return false;
-	const id = cache.server.id;
-	return this.dispatchers[id];
-};
-
-Audio.setVolume = function(volume, cache) {
-	if(!cache.server) return;
-	const id = cache.server.id;
-	if(this.dispatchers[id]) {
-		this.volumes[id] = volume;
-		this.dispatchers[id].setVolumeLogarithmic(volume);
-	}
-};
+Audio.queue = {};
+Audio.loop = {};
+Audio.volumes = {}
+Audio.connections = {};
+Audio.dispatchers = {};
+Audio.caches = {};
 
 Audio.connectToVoice = function(voiceChannel) {
-	const promise = voiceChannel.join();
-	promise.then(function(connection) {
+	voiceChannel.join().then(connection => {
+		this.loop[voiceChannel.guild.id] == false;
 		this.connections[voiceChannel.guild.id] = connection;
 		connection.on('disconnect', function() {
 			this.connections[voiceChannel.guild.id] = null;
-			this.volumes[voiceChannel.guild.id] = null;
-		}.bind(this));
-	}.bind(this)).catch(console.error);
-	return promise;
-};
+			this.loop[voiceChannel.guild.id] = null;
+			this.dispatchers[guild.id] = null;
+		})
+	}).catch(console.error())
+}
 
-Audio.addToQueue = function(item, cache) {
-	if(!cache.server) return;
-	const id = cache.server.id;
-	if(!this.queue[id]) this.queue[id] = [];
-	this.queue[id].push(item);
-	this.playNext(id);
-};
+Audio.loadInfo = function(item, position, id) {
+	const readStream = this.ytdl(item.url, { filter: "audioonly"});
 
-Audio.clearQueue = function(cache) {
-	if(!cache.server) return;
-	const id = cache.server.id;
-	this.queue[id] = [];
-};
+	readStream.on('end',() => {
+		item.cache = true;
+		this.queue[id][position] = item;
+	})
 
-Audio.playNext = function(id, forceSkip) {
-	if(!this.connections[id]) return;
-	if(!this.dispatchers[id] || !!forceSkip) {
-		if(!this.queue[id]) this.queue[id] = [];
-		if(this.queue[id].length > 0) {
-			const item = this.queue[id].shift();
-			this.playItem(item, id);
-		} else {
-			this.connections[id].disconnect();
-		}
-	}
-};
+	readStream.on('info', (info,format) => {
+		item.title = info.title;
+		item.id = info.video_id;
+		item.duration = info.length_seconds;
+		item.local = ".\\resources\\"+info.video_id+".mp3";
+		this.queue[id][position] = item;
+		readStream.pipe(fs.createWriteStream(output))
+	})
+}
 
 Audio.playItem = function(item, id) {
-	if(!this.connections[id]) return;
-	if(this.dispatchers[id]) {
-		this.dispatchers[id]._forceEnd = true;
-		this.dispatchers[id].end();
+	if (!this.connections[id]) return;
+	if (!this.queue[id]) {
+		this.queue[id] = [];
+		this.queue[id].push(item);
 	}
-	const type = item[0];
-	let setupDispatcher = false;
-	switch(type) {
+	switch (item.type) {
 		case 'file':
-			setupDispatcher = this.playFile(item[2], item[1], id);
-			break;
 		case 'url':
-			setupDispatcher = this.playUrl(item[2], item[1], id);
+			this.dispatchers[id] = this.connections[id].play(item.url, item.options);
 			break;
 		case 'yt':
-			setupDispatcher = this.playYt(item[2], item[1], id);
+			if (item.cache) {
+				this.dispatchers[id] = this.connections[id].play(item.local, item.options);
+			} else {
+				this.dispatchers[id] = this.connections[id].play(this.ytdl(item.url), item.options);
+				this.loadInfo(item, 0, id);
+			}
 			break;
 	}
-	if(setupDispatcher && !this.dispatchers[id]._eventSetup) {
-		this.dispatchers[id].on('end', function() {
-			const isForced = this.dispatchers[id]._forceEnd;
-			this.dispatchers[id] = null;
-			if(!isForced) {
+	this.dispatchers[id].on('speaking',function(talk) {
+		if (!talk) {
+			if (this.queue[id][0].type == "yt") {
+				this.caches[item.id] = Math.floor(new Date().getTime() / 1000) + 1800;
+				const bot = this.bot;
+				this.startTimeout(item.local,id,bot);
+			}
+			if(!this.loop[id]) {
+				this.queue[id].shift();
+			} else if (this.loop[id] == "queue") {
+				const item = this.queue[id].shift;
+				this.queue[id].push(item);
+			}
+			if (this.queue[id].length > 0) {
 				this.playNext(id);
 			}
-		}.bind(this));
-		this.dispatchers[id]._eventSetup = true;
+		}
+	})
+}
+
+Audio.controlAudio = function(id,action,amount) {
+	const seek = this.dispatchers[id].streamOptions.passes * 20;
+	const item = this.queue[id][0];
+	switch(action) {
+		case 3:
+			item.options.seek = seek + amount;
+			this.playItem(item,id)
+			break;
+		case 4:
+			item.options.seek = seek - amount;
+			this.playItem(item,id)
+			break;
+		case 5:
+			this.playItem(item,id);
+			break;
+	}
+}
+
+Audio.playNext = function(id, forceSkip) {
+	if(!this.connections[id] || !this.queue[id] || this.queue[id].length < 1 ) return;
+	let item;
+	if (forceSkip && this.queue[id].length > 1) {
+		this.queue[id].shift();
+		item = this.queue[id][0];
+	} else if (!this.connection[id].voice.speaking) {
+		item = this.queue[id][0];
+	}
+	if (item) {
+		this.playItem(item, id);
+	}
+}
+
+Audio.startTimeout = function(path,id,bot) {
+	bot.setTimeout(function(path,id) {
+		if (fs.existsSync(path)) {
+			if (Math.floor(new Date().getTime() / 1000) > this.caches[id]) {
+				fs.unlinkSync(path);
+			}
+		}
+	}.bind(this), 1800000);
+}
+
+Audio.shuffleQueue = function(id) {
+	if(this.queue[id].length > 1) {
+		if (this.connection[id].voice.speaking && this.queue[id].length > 2) {
+			const playing = this.queue[id].shift;
+			let queue = this.queue[id];
+			const queueStr = JSON.stringify(queue);
+			while (JSON.stringify(queue) == queueStr) {
+				queue.sort(() => Math.random() - 0.5);
+			}
+			this.queue[id] = queue;
+			this.queue[id].unshift(playing);
+		} else if (!this.connection[id].voice.speaking) {
+			let queue = this.queue[id];
+			const queueStr = JSON.stringify(queue);
+			while (JSON.stringify(queue) == queueStr) {
+				queue.sort(() => Math.random() - 0.5);
+			}
+			this.queue[id] = queue;
+		}
+	} 
+}
+
+Audio.skipQueue = function(amount, id) {
+	if(!this.connections[id]) return;
+	if(this.queue[id] && this.queue[id].length > amount) {
+		this.queue[id].slice(amount);
+		const item = this.queue[id][0];
+		this.playItem(item, id);
+	}	
+}
+
+Audio.addToQueue = function(item, id) {
+	if(!this.queue[id]) this.queue[id] = [];
+	this.queue[id].push(item);
+	if (item.type == "yt") {
+		this.loadInfo(item, this.queue[id].length-1, id);
 	}
 };
 
-Audio.playFile = function(url, options, id) {
-	this.dispatchers[id] = this.connections[id].playFile(Actions.getLocalFile(url), options);
-	return true;
-};
+Audio.moveQueue = function(from, position, id) {
+	if(!this.queue[id]) return;
+	const move = this.queue[id][from];
+	this.queue[id].splice(from,1);
+	this.queue[id].splice(position,0,move);
+}	
 
-Audio.playUrl = function(url, options, id) {
-	this.dispatchers[id] = this.connections[id].playArbitraryInput(url, options);
-	return true;
-};
+Audio.removeFromQueue = function (options, id) {
+	if(this.connection[id].voice.speaking && options.from != 0) {
+		if(this.queue[id] && this.queue[id].length > options.amount + options.from) {
+			this.queue[id].splice(options.from, options.amount);
+		}
+	} else if (this.connection[id].voice.speaking) {
+		if(this.queue[id] && this.queue[id].length >= options.amount + options.from) {
+			this.queue[id].splice(options.from, options.amount);
+		}
+	}
+}
 
-Audio.playYt = function(url, options, id) {
-	if(!this.ytdl) return false;
-	const stream = this.ytdl(url, {
-		filter: 'audioonly'
-	});
-	this.dispatchers[id] = this.connections[id].playStream(stream, options);
-	return true;
-};
+Audio.removeQueue = function(id) {
+	if (this.connection[id].voice.speaking) {
+		this.queue[id].splice(1,this.queue[id].length);
+	} else {
+		this.queue[id] = [];
+	}
+}
+
+Audio.recordAudio = function(member, options, id) {
+	const fs = require('fs');
+	if(this.connections[id]) {
+		const receiver = this.connections[id].createReceiver();
+		const stream = receiver.createStream(member, {end: options.end});
+		stream.pipe(fs.createWriteStream(options.fileName));
+		return receiver;
+		//this.dispatchers[id].destroy();
+	}
+}
+
+Audio.setVolume = function(options, id) {
+	if(this.dispatchers[id]) {
+		switch(options.type) {
+			case 'db':
+				this.dispatchers[id].setVolumeDecibels(options.volume);
+				break;
+			case 'perceived':
+				this.dispatchers[id].setVolumeLogarithmic(options.volume);
+				break;
+			default:
+				this.dispatchers[id].setVolume(options.volume);
+				break;
+		}
+	}
+}
 
 //---------------------------------------------------------------------
 // GuildMember

@@ -90,9 +90,10 @@ class StoreAttachmentInfo {
       'URL',
       'File Name',
       'Number',
-      'Message Content',
+      'Easter Egg Here',
       'File Size',
       'Message ID',
+      'Is Spoiler?'
     ][info] || 'Message Attachment (Unknown) Info';
 
     return ([data.varName2, dataType]);
@@ -128,12 +129,13 @@ class StoreAttachmentInfo {
 
       const result = [
         attachment.url,
-        attachment.filename,
+        attachment.name,
         attachment.height,
         attachment.width,
-        attachment.message.content,
-        Math.floor(attachment.filesize / 1000),
-        attachment.message.id,
+        "Easter Egg found.",
+        Math.floor(attachment.size / 1000),
+        attachment.id,
+        attachment.spoiler
       ][info];
 
       if (result !== undefined) {
@@ -179,9 +181,9 @@ class StoreAttachmentInfo {
           <option value="1">Attachment File's Name</option>
           <option value="2">Attachment's Height</option>
           <option value="3">Attachment's Width</option>
-          <option value="4">Attachment Message's Content</option>
           <option value="5">Attachment File's Size (KB)</option>
           <option value="6">Attachment Message's ID</option>
+          <option value="6">Is Attachment Spoiler</option>
         </select>
       </div><br><br>
       <div style="float: left; width: 35%; padding-top: 8px;">

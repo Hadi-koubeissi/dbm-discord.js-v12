@@ -119,7 +119,7 @@ module.exports = {
 		const fastsort = WrexMODS.require('fast-sort');
 		const {JSONPath} = WrexMODS.require('jsonpath-plus');
 		const fs = require('fs')
-		const file = fs.readFileSync("./data/players.json", 'utf8');
+		var file = fs.readFileSync("./data/players.json", 'utf8');
 
 		if (file && val !== undefined) {
 			dataName = '[' + "'" + dataName + "'" + ']';
@@ -164,7 +164,7 @@ module.exports = {
 					try {
 						var file = JSON.parse(result2)
 						var res = JSONPath({path: '$..name2', json: file});
-						var res2 = JSONPath({path: '$..id', json: file});
+						res2 = JSONPath({path: '$..id', json: file});
 						var username = res2
 						var result = res
 						eval(' ' + st + ' ');
